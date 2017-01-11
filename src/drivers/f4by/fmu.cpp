@@ -164,9 +164,8 @@ private:
 	uint16_t	_reverse_pwm_mask;
 	unsigned	_num_failsafe_set;
 	unsigned	_num_disarmed_set;
-
+	unsigned 	_oneshot_clock;
 	bool 		_oneshot_mode;
-	unsigned	_oneshot_type;
 	hrt_abstime	_oneshot_delay_till;
 
 	static void	task_main_trampoline(int argc, char *argv[]);
@@ -249,8 +248,8 @@ F4BYFMU::F4BYFMU() :
 	_reverse_pwm_mask(0),
 	_num_failsafe_set(0),
 	_num_disarmed_set(0),
+	_oneshot_clock(1),
 	_oneshot_mode(0),
-	_oneshot_type(0),
 	_oneshot_delay_till(0)
 {
 	for (unsigned i = 0; i < _max_actuators; i++) {
@@ -471,9 +470,9 @@ F4BYFMU::set_pwm_rate(uint32_t rate_map, unsigned default_rate, unsigned alt_rat
 						warn("rate group set alt failed");
 						return -EINVAL;
 					}
-					if (_oneshot_type > 1 ) { //oneshot125
-					up_pwm_servo_set_rate_group_clock(group, 8U); //set servo timers to 8mhz
-					}
+
+					up_pwm_servo_set_rate_group_clock(group, _oneshot_clock); //set servo timers to 8mhz
+
 				} else {
 					if (up_pwm_servo_set_rate_group_update(group, _pwm_default_rate) != OK) {
 						warn("rate group set default failed");
@@ -1110,12 +1109,12 @@ F4BYFMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 		/* FALLTHROUGH */
 	case PWM_SERVO_SET(1):
 	case PWM_SERVO_SET(0):
-	//	if (arg <= 2100) { x8
+		if (arg <= 2100) {
 			up_pwm_servo_set(cmd - PWM_SERVO_SET(0), arg);
 
-	//	} else {
+		} else {
 			ret = -EINVAL;
-	//	}
+		}
 
 		break;
 	case PWM_SERVO_GET(11):
@@ -1241,19 +1240,13 @@ F4BYFMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	}
 
 	case PWM_SERVO_SET_ONESHOT:
-		if (arg == 0) {
-			_oneshot_mode = false;
-			_oneshot_type = 0;
-		}
-		else
-		{
-			_oneshot_mode = true;
-			_oneshot_type = 2;
-		}
-
-		set_pwm_rate(_pwm_alt_rate_channels, _pwm_default_rate, _pwm_alt_rate);
+		_oneshot_mode = arg ? true : false;
 		ret = OK;
 		break;
+
+	case PWM_SERVO_SET_UPDATE_CLOCK:
+		_oneshot_clock = arg;
+		set_pwm_rate(_pwm_alt_rate_channels, _pwm_default_rate, _pwm_alt_rate);
 
 	case MIXERIOCRESET:
 		if (_mixers != nullptr) {
@@ -1346,7 +1339,7 @@ F4BYFMU::write(file *filp, const char *buffer, size_t len)
 	// allow for misaligned values
 	memcpy(values, buffer, count * 2);
 
-	if (_oneshot_mode) {
+	if (_oneshot_mode && _oneshot_clock ==1) { //oneshot 125 x8 faster with clock 8mhz not need check overlay
 		hrt_abstime now = hrt_absolute_time();
 
 		/*
