@@ -466,7 +466,7 @@ F4BYFMU::set_pwm_rate(uint32_t rate_map, unsigned default_rate, unsigned alt_rat
 			} else {
 				// set it - errors here are unexpected
 				if (alt != 0) {
-					if (up_pwm_servo_set_rate_group_update(group, _pwm_alt_rate) != OK) {
+					if (up_pwm_servo_set_rate_group_update(group, alt_rate) != OK) {
 						warn("rate group set alt failed");
 						return -EINVAL;
 					}
@@ -474,7 +474,7 @@ F4BYFMU::set_pwm_rate(uint32_t rate_map, unsigned default_rate, unsigned alt_rat
 					up_pwm_servo_set_rate_group_clock(group, _oneshot_clock); //set servo timers to 8mhz
 
 				} else {
-					if (up_pwm_servo_set_rate_group_update(group, _pwm_default_rate) != OK) {
+					if (up_pwm_servo_set_rate_group_update(group, default_rate) != OK) {
 						warn("rate group set default failed");
 						return -EINVAL;
 					}
@@ -1247,7 +1247,8 @@ F4BYFMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	case PWM_SERVO_SET_UPDATE_CLOCK:
 		_oneshot_clock = arg;
 		set_pwm_rate(_pwm_alt_rate_channels, _pwm_default_rate, _pwm_alt_rate);
-
+		ret = OK;
+		break;
 	case MIXERIOCRESET:
 		if (_mixers != nullptr) {
 			delete _mixers;
@@ -1339,7 +1340,7 @@ F4BYFMU::write(file *filp, const char *buffer, size_t len)
 	// allow for misaligned values
 	memcpy(values, buffer, count * 2);
 
-	if (_oneshot_mode && _oneshot_clock ==1) { //oneshot 125 x8 faster with clock 8mhz not need check overlay
+	if (_oneshot_mode ) {
 		hrt_abstime now = hrt_absolute_time();
 
 		/*
@@ -1352,7 +1353,8 @@ F4BYFMU::write(file *filp, const char *buffer, size_t len)
 		  end of the pulse
 		 */
 		if (now < _oneshot_delay_till) {
-			up_udelay(_oneshot_delay_till - now);
+			//up_udelay(_oneshot_delay_till - now);
+			return count * 2; // missing pulse save cpu usage
 		}
 	}
 
@@ -1369,7 +1371,7 @@ F4BYFMU::write(file *filp, const char *buffer, size_t len)
 
 	if (_oneshot_mode) {
 		up_pwm_servo_trigger(_pwm_alt_rate_channels);
-		_oneshot_delay_till = hrt_absolute_time() + widest_pulse + 50;
+		_oneshot_delay_till = hrt_absolute_time() + (widest_pulse + 50) / _oneshot_clock ;
 	}
 
 	return count * 2;
