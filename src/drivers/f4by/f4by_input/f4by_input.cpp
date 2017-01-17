@@ -273,7 +273,7 @@ void F4BY_INPUT::controls_tick()
 	struct rc_input_values rc_in;
 
 	memset(&rc_in, 0, sizeof(rc_in));
-	rc_in.input_source = 0;
+//	rc_in.input_source = 0;
 	
 	bool updated = false;
 	
@@ -342,6 +342,9 @@ void F4BY_INPUT::controls_init()
 	PIN3 - USART6_RX
 	*/
 	
+	struct rc_input_values rc_in;
+	memset(&rc_in, 0, sizeof(rc_in));
+
 	stm32_configgpio(IN2_INPUT);
 	stm32_configgpio(IN1_OUTPUT);
 	
@@ -375,6 +378,7 @@ void F4BY_INPUT::controls_init()
 		//log("DSM input");
 		_inputType = eDSM;
 		dsm_init("/dev/ttyS5");
+		rc_in.input_source = 4;
 		return;
 	}
 	
@@ -403,6 +407,7 @@ void F4BY_INPUT::controls_init()
 		//log("S.BUS input");
 		_inputType = eSBUS;
 		sbus_init("/dev/ttyS5");
+		rc_in.input_source = 3;
 		return;
 	}
 	
@@ -430,11 +435,13 @@ void F4BY_INPUT::controls_init()
 		//log("PPMSUM input");
 		_inputType = ePPMSUM;
 		rc_init(true);
+		rc_in.input_source = 2;
 		return;
 	}else 
 	{
 		//log("PPM input");
 		rc_init(false);
+		rc_in.input_source = 1;
 	}
 }
 

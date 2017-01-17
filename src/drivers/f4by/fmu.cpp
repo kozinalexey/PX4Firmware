@@ -1608,6 +1608,10 @@ fmu_new_mode(PortMode new_mode)
 	uint32_t gpio_bits;
 	F4BYFMU::Mode servo_mode;
 
+	struct rc_input_values rc_in;
+	orb_advert_t to_input_rc = 0;
+	memset(&rc_in, 0, sizeof(rc_in));
+
 	/* reset to all-inputs */
 	g_fmu->ioctl(0, GPIO_RESET, 0);
 
@@ -1622,7 +1626,14 @@ fmu_new_mode(PortMode new_mode)
 
 	case PORT_FULL_PWM:
 		/* select 12-pin PWM mode */
-		servo_mode = F4BYFMU::MODE_12PWM;//F4BY
+
+		if (rc_in.input_source!=1){ //8 PWM inputs
+			servo_mode = F4BYFMU::MODE_12PWM;
+			}
+		else {
+			servo_mode = F4BYFMU::MODE_8PWM;
+			}
+
 		break;
 
 	
