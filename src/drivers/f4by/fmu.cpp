@@ -1627,8 +1627,8 @@ fmu_new_mode(PortMode new_mode)
 
 	
 	case PORT_PWM_AND_GPIO:
-		/* select 2-pin PWM mode */
-		servo_mode = F4BYFMU::MODE_12PWM;
+		/* select 8 PWM mode */
+		servo_mode = F4BYFMU::MODE_8PWM;
 		break;
 
 	default:
